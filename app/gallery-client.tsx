@@ -21,6 +21,7 @@ export function GalleryClient({ album, photos }: { album: GalleryAlbum; photos: 
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [lightboxPreview, setLightboxPreview] = useState("");
   const [notice, setNotice] = useState("");
+  const [downloadingPhotoId, setDownloadingPhotoId] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const touchStart = useRef<number | null>(null);
   const selectedPhotos = useMemo(() => photos.filter((photo) => selected.has(photo.id)), [photos, selected]);
@@ -46,32 +47,67 @@ export function GalleryClient({ album, photos }: { album: GalleryAlbum; photos: 
   }, [lightbox, infoOpen]);
 
   useEffect(() => {
+    if (lightbox === null) return;
+
+    const updateViewerHeight = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty("--lightbox-height", `${Math.round(height)}px`);
+    };
+
+    updateViewerHeight();
+    window.addEventListener("resize", updateViewerHeight);
+    window.addEventListener("orientationchange", updateViewerHeight);
+    window.visualViewport?.addEventListener("resize", updateViewerHeight);
+
+    return () => {
+      window.removeEventListener("resize", updateViewerHeight);
+      window.removeEventListener("orientationchange", updateViewerHeight);
+      window.visualViewport?.removeEventListener("resize", updateViewerHeight);
+      document.documentElement.style.removeProperty("--lightbox-height");
+    };
+  }, [lightbox]);
+
+  useEffect(() => {
     if (!currentPhoto) {
       setLightboxPreview("");
       return;
     }
 
     let cancelled = false;
-
-    // Show the already-loaded gallery image immediately.
     setLightboxPreview(currentPhoto.src);
 
-    // Upgrade to the larger preview after it has loaded.
+    const mobilePreviewOnly = window.matchMedia("(max-width: 850px), (pointer: coarse)").matches;
+    if (mobilePreviewOnly) return;
+
     const fullImage = new Image();
-    fullImage.onload = () => {
+    fullImage.onload = async () => {
+      try { await fullImage.decode(); } catch { /* Keep the cached preview if decoding is unavailable. */ }
       if (!cancelled) setLightboxPreview(currentPhoto.full);
-    };
-    fullImage.onerror = () => {
-      if (!cancelled) setLightboxPreview(currentPhoto.src);
     };
     fullImage.src = currentPhoto.full;
 
     return () => {
       cancelled = true;
       fullImage.onload = null;
-      fullImage.onerror = null;
     };
   }, [currentPhoto]);
+
+  const downloadSingle = async (photo: GalleryPhoto) => {
+    if (downloadingPhotoId) return;
+
+    setDownloadingPhotoId(photo.id);
+    setNotice(`กำลังดาวน์โหลด ${photo.filename}…`);
+
+    try {
+      await savePhoto(photo);
+      setNotice("เริ่มดาวน์โหลดไฟล์ต้นฉบับแล้ว");
+    } catch {
+      setNotice(`ดาวน์โหลด ${photo.filename} ไม่สำเร็จ`);
+    } finally {
+      setDownloadingPhotoId(null);
+      setTimeout(() => setNotice(""), 2500);
+    }
+  };
 
   const downloadSelected = async () => {
     setNotice(`กำลังดาวน์โหลด ${selectedPhotos.length} รูป…`);
@@ -115,19 +151,14 @@ export function GalleryClient({ album, photos }: { album: GalleryAlbum; photos: 
       {selected.size > 0 && <div className="selection-bar"><div><span>{selected.size}</span><p>รูปที่เลือก<small>แตะรูปอีกครั้งเพื่อยกเลิก</small></p></div><button className="clear-button" onClick={() => setSelected(new Set())}>ล้าง</button><button className="download-button" onClick={downloadSelected}><span>↓</span> ดาวน์โหลด</button></div>}
       {notice && <div className="toast" role="status">{notice}</div>}
       {currentPhoto && <div className="lightbox" role="dialog" aria-modal="true" aria-label={`ดูภาพ ${lightbox! + 1} จาก ${photos.length}`} onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }} onTouchEnd={(event) => { if (touchStart.current === null) return; const distance = event.changedTouches[0].clientX - touchStart.current; if (Math.abs(distance) > 45) move(distance > 0 ? -1 : 1); touchStart.current = null; }}>
-        <div className="lightbox-top"><span><b>{String(lightbox! + 1).padStart(2, "0")}</b> / {String(photos.length).padStart(2, "0")}</span><div><button onClick={() => toggle(currentPhoto.id)} className={selected.has(currentPhoto.id) ? "chosen" : ""}>{selected.has(currentPhoto.id) ? "✓ เลือกแล้ว" : "○ เลือกรูป"}</button><button onClick={() => savePhoto(currentPhoto)}>↓ ดาวน์โหลด</button><button className="close" onClick={() => setLightbox(null)} aria-label="ปิด">×</button></div></div>
-        <button className="nav prev" onClick={() => move(-1)} aria-label="รูปก่อนหน้า">←</button><div className="lightbox-stage"><img
-          key={`${currentPhoto.id}-${lightboxPreview}`}
-          src={lightboxPreview || currentPhoto.src}
-          alt={currentPhoto.alt}
-          decoding="async"
-          draggable={false}
-          onError={() => {
-            if (lightboxPreview !== currentPhoto.src) {
-              setLightboxPreview(currentPhoto.src);
-            }
-          }}
-        /></div><button className="nav next" onClick={() => move(1)} aria-label="รูปถัดไป">→</button><div className="lightbox-bottom"><p>{currentPhoto.filename}</p><span>ปัดซ้าย–ขวา หรือใช้ปุ่มลูกศรเพื่อดูรูปถัดไป</span></div>
+        <div className="lightbox-top"><span><b>{String(lightbox! + 1).padStart(2, "0")}</b> / {String(photos.length).padStart(2, "0")}</span><div><button onClick={() => toggle(currentPhoto.id)} className={selected.has(currentPhoto.id) ? "chosen" : ""}>{selected.has(currentPhoto.id) ? "✓ เลือกแล้ว" : "○ เลือกรูป"}</button><button
+          onClick={() => downloadSingle(currentPhoto)}
+          disabled={downloadingPhotoId === currentPhoto.id}
+          aria-busy={downloadingPhotoId === currentPhoto.id}
+        >
+          {downloadingPhotoId === currentPhoto.id ? "กำลังดาวน์โหลด…" : "↓ ดาวน์โหลด"}
+        </button><button className="close" onClick={() => setLightbox(null)} aria-label="ปิด">×</button></div></div>
+        <button className="nav prev" onClick={() => move(-1)} aria-label="รูปก่อนหน้า">←</button><div className="lightbox-stage"><img key={currentPhoto.id} src={lightboxPreview || currentPhoto.src} alt={currentPhoto.alt} /></div><button className="nav next" onClick={() => move(1)} aria-label="รูปถัดไป">→</button><div className="lightbox-bottom"><p>{currentPhoto.filename}</p><span>ปัดซ้าย–ขวา หรือใช้ปุ่มลูกศรเพื่อดูรูปถัดไป</span></div>
       </div>}
       {infoOpen && <div className="sheet-backdrop" role="presentation" onMouseDown={() => setInfoOpen(false)}><aside className="info-sheet" role="dialog" aria-modal="true" aria-label="ข้อมูลอัลบั้ม" onMouseDown={(event) => event.stopPropagation()}><button className="sheet-close" onClick={() => setInfoOpen(false)}>×</button><span className="sheet-kicker">PRIVATE GALLERY</span><h2>{album.title}</h2><p>ลิงก์นี้จัดทำสำหรับลูกค้าของอัลบั้มนี้เท่านั้น กรุณาไม่ส่งต่อให้บุคคลอื่น</p><dl><div><dt>วันที่</dt><dd>{album.eventDate || "—"}</dd></div><div><dt>สถานที่</dt><dd>{album.venue || "—"}</dd></div><div><dt>ช่างภาพ</dt><dd>KoAke Photo</dd></div></dl><button className="sheet-action" onClick={() => { setInfoOpen(false); setSelected(new Set(photos.map((photo) => photo.id))); }}>เลือกทุกภาพในอัลบั้ม</button></aside></div>}
     </main>
