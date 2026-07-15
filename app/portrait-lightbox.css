@@ -1,0 +1,116 @@
+/*
+  KoAke portrait lightbox hard fix
+  Avoids CSS Grid / percentage-height bugs in Android WebView and
+  in-app browsers such as Messenger.
+*/
+
+.lightbox {
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100svh !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background: #151512 !important;
+}
+
+.lightbox-top {
+  position: absolute !important;
+  z-index: 5 !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: auto !important;
+  height: 72px !important;
+}
+
+.lightbox-stage {
+  position: absolute !important;
+  z-index: 1 !important;
+  top: 72px !important;
+  right: 0 !important;
+  bottom: 58px !important;
+  left: 0 !important;
+  display: block !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 12px !important;
+  overflow: hidden !important;
+  contain: none !important;
+}
+
+.lightbox-stage > img {
+  position: absolute !important;
+  inset: 12px !important;
+  display: block !important;
+  width: calc(100% - 24px) !important;
+  height: calc(100% - 24px) !important;
+  min-width: 1px !important;
+  min-height: 1px !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  object-fit: contain !important;
+  object-position: 50% 50% !important;
+  transform: none !important;
+  backface-visibility: visible !important;
+}
+
+.lightbox-bottom {
+  position: absolute !important;
+  z-index: 5 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: auto !important;
+  height: 58px !important;
+}
+
+.lightbox .nav {
+  position: absolute !important;
+  z-index: 6 !important;
+  top: 50% !important;
+  width: 54px !important;
+  height: 64px !important;
+  transform: translateY(-50%) !important;
+}
+
+.lightbox .nav.prev {
+  left: 0 !important;
+}
+
+.lightbox .nav.next {
+  right: 0 !important;
+}
+
+@media (max-width: 560px) {
+  .lightbox-top {
+    height: 64px !important;
+  }
+
+  .lightbox-stage {
+    top: 64px !important;
+    right: 0 !important;
+    bottom: 58px !important;
+    left: 0 !important;
+    padding: 4px !important;
+  }
+
+  .lightbox-stage > img {
+    inset: 4px !important;
+    width: calc(100% - 8px) !important;
+    height: calc(100% - 8px) !important;
+  }
+}
+
+/* Fallback for older WebViews without svh support. */
+@supports not (height: 100svh) {
+  .lightbox {
+    height: 100vh !important;
+  }
+}
