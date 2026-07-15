@@ -1,0 +1,25 @@
+/* Android WebView / Messenger portrait-image rendering fix.
+   Forces the image to occupy a real box instead of relying on intrinsic
+   portrait dimensions inside a CSS grid. */
+.lightbox-stage {
+  contain: none !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.lightbox-stage > img {
+  position: static !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
