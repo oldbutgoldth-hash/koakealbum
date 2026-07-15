@@ -44,6 +44,27 @@ export function GalleryClient({ album, photos }: { album: GalleryAlbum; photos: 
     return () => { document.body.style.overflow = ""; };
   }, [lightbox, infoOpen]);
 
+  useEffect(() => {
+    if (lightbox === null) return;
+
+    const updateViewerHeight = () => {
+      const height = window.visualViewport?.height ?? window.innerHeight;
+      document.documentElement.style.setProperty("--lightbox-height", `${Math.round(height)}px`);
+    };
+
+    updateViewerHeight();
+    window.addEventListener("resize", updateViewerHeight);
+    window.addEventListener("orientationchange", updateViewerHeight);
+    window.visualViewport?.addEventListener("resize", updateViewerHeight);
+
+    return () => {
+      window.removeEventListener("resize", updateViewerHeight);
+      window.removeEventListener("orientationchange", updateViewerHeight);
+      window.visualViewport?.removeEventListener("resize", updateViewerHeight);
+      document.documentElement.style.removeProperty("--lightbox-height");
+    };
+  }, [lightbox]);
+
   const downloadSelected = async () => {
     setNotice(`กำลังดาวน์โหลด ${selectedPhotos.length} รูป…`);
     for (const photo of selectedPhotos) {
