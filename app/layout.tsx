@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import "./portrait-lightbox.css";
+import "./admin-album-edit.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

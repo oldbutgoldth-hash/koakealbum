@@ -1,0 +1,143 @@
+/* KoAke admin album editor — layout and mobile polish */
+
+.album-card-body {
+  min-width: 0;
+}
+
+.album-edit-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 0 2px;
+}
+
+.album-edit-form label {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 7px;
+  width: 100% !important;
+  min-width: 0;
+  margin: 0 !important;
+  color: #625d55;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.album-edit-form input {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  margin: 0 !important;
+  padding: 0 13px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 2px;
+  background: #fff !important;
+  color: var(--ink) !important;
+  font: inherit;
+  font-size: 13px;
+  line-height: normal;
+  outline: none;
+  appearance: auto;
+}
+
+.album-edit-form input[type="date"] {
+  color-scheme: light;
+  padding-right: 10px !important;
+}
+
+.album-edit-form input:focus {
+  border-color: var(--sage) !important;
+  box-shadow: 0 0 0 3px rgba(118, 128, 106, .13);
+}
+
+.edit-expiry-note {
+  min-height: 0 !important;
+  margin: -2px 0 0 !important;
+  padding: 10px 12px;
+  border-left: 3px solid #909b85;
+  background: #f0f2eb;
+  color: #706b63 !important;
+  font-size: 10px !important;
+  line-height: 1.65;
+}
+
+.album-edit-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.save-album-edit,
+.cancel-album-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 15px;
+  border-radius: 2px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.save-album-edit {
+  border: 1px solid #68745e;
+  background: #68745e;
+  color: #fff;
+}
+
+.save-album-edit:hover {
+  background: #596550;
+  border-color: #596550;
+}
+
+.cancel-album-edit {
+  border: 1px solid #aaa49a;
+  background: #fff;
+  color: var(--ink);
+}
+
+.cancel-album-edit:hover {
+  background: #eeeae2;
+}
+
+.save-album-edit:disabled,
+.cancel-album-edit:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.dashboard-status {
+  margin: 0 0 28px;
+}
+
+@media (max-width: 600px) {
+  .album-edit-form {
+    gap: 13px;
+  }
+
+  .album-edit-form input {
+    height: 48px !important;
+    min-height: 48px !important;
+    font-size: 16px;
+  }
+
+  .album-edit-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .save-album-edit,
+  .cancel-album-edit {
+    width: 100%;
+    min-height: 48px;
+  }
+}
