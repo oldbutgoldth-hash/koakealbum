@@ -1,0 +1,11 @@
+.dashboard-status { margin:0 0 28px; }
+.album-edit-form { display:grid; gap:13px; }
+.album-edit-form label { display:block; color:#69645c; font-size:11px; }
+.album-edit-form input { display:block; width:100%; min-height:44px; margin-top:7px; padding:0 12px; border:1px solid var(--line); background:#fff; color:var(--ink); outline:none; }
+.album-edit-form input:focus { border-color:var(--sage); box-shadow:0 0 0 2px rgba(118,128,106,.12); }
+.edit-expiry-note { min-height:0 !important; margin:0 !important; color:#827b71 !important; font-size:10px !important; line-height:1.5; }
+.album-edit-actions { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin-top:3px; }
+.save-album-edit,.cancel-album-edit { min-height:43px; padding:0 14px; border-radius:2px; cursor:pointer; font-weight:600; font-size:11px; }
+.save-album-edit { border:1px solid #68745e; background:#68745e; color:#fff; }
+.cancel-album-edit { border:1px solid #aaa49a; background:transparent; color:var(--ink); }
+.save-album-edit:disabled,.cancel-album-edit:disabled { opacity:.55; cursor:wait; }

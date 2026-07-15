@@ -3,12 +3,26 @@
 import { useMemo, useState } from "react";
 import type { AdminAlbum } from "../../db/gallery";
 
+function toDateInput(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
 export function StudioClient({ ownerName, initialAlbums }: { ownerName: string; initialAlbums: AdminAlbum[] }) {
   const [albums, setAlbums] = useState(initialAlbums);
   const [showCreate, setShowCreate] = useState(initialAlbums.length === 0);
   const [title, setTitle] = useState(""); const [eventDate, setEventDate] = useState(""); const [venue, setVenue] = useState(""); const [expiresAt, setExpiresAt] = useState(""); const [shareLink, setShareLink] = useState("");
   const [status, setStatus] = useState(""); const [busy, setBusy] = useState(false); const [copied, setCopied] = useState("");
   const [deletingId, setDeletingId] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editEventDate, setEditEventDate] = useState("");
+  const [editVenue, setEditVenue] = useState("");
+  const [editExpiresAt, setEditExpiresAt] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const publishedCount = useMemo(() => albums.filter((album) => album.isPublished).length, [albums]);
 
   const customerUrl = (token: string) => `${window.location.origin}/g/${token}`;
@@ -32,6 +46,50 @@ export function StudioClient({ ownerName, initialAlbums }: { ownerName: string; 
     if (response.ok) setAlbums((current) => current.map((item) => item.id === album.id ? { ...item, isPublished: next } : item));
   };
 
+  const startEdit = (album: AdminAlbum) => {
+    setEditingId(album.id);
+    setEditTitle(album.title);
+    setEditEventDate(album.eventDate ?? "");
+    setEditVenue(album.venue ?? "");
+    setEditExpiresAt(toDateInput(album.expiresAt));
+    setStatus("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId("");
+    setEditTitle("");
+    setEditEventDate("");
+    setEditVenue("");
+    setEditExpiresAt("");
+  };
+
+  const saveEdit = async (album: AdminAlbum) => {
+    if (!editTitle.trim() || savingEdit) return;
+    setSavingEdit(true);
+    setStatus("กำลังบันทึกการแก้ไขอัลบั้ม…");
+    try {
+      const response = await fetch(`/api/admin/albums/${album.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          eventDate: editEventDate.trim(),
+          venue: editVenue.trim(),
+          expiresAt: editExpiresAt ? new Date(`${editExpiresAt}T23:59:59`).toISOString() : "",
+        }),
+      });
+      const result = await response.json() as { album?: AdminAlbum; error?: string };
+      if (!response.ok || !result.album) throw new Error(result.error ?? "บันทึกไม่สำเร็จ");
+      setAlbums((current) => current.map((item) => item.id === album.id ? result.album! : item));
+      setStatus(`บันทึกการแก้ไขอัลบั้ม “${result.album.title}” เรียบร้อยแล้ว`);
+      cancelEdit();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "บันทึกไม่สำเร็จ กรุณาลองใหม่");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const deleteAlbum = async (album: AdminAlbum) => {
     const confirmed = window.confirm(`ลบอัลบั้ม “${album.title}” ถาวรหรือไม่?\n\nรูปที่เก็บในแอปและลิงก์ลูกค้าจะถูกลบและไม่สามารถกู้คืนได้`);
     if (!confirmed) return;
@@ -52,10 +110,25 @@ export function StudioClient({ ownerName, initialAlbums }: { ownerName: string; 
       <div className="dashboard-title"><div><span className="sheet-kicker">PHOTOGRAPHER STUDIO</span><h1>อัลบั้มลูกค้า</h1><p>สร้าง จัดการ และส่งลิงก์ส่วนตัวให้ลูกค้าแต่ละงาน</p></div><button className="primary" onClick={() => setShowCreate((value) => !value)}>{showCreate ? "ปิดแบบฟอร์ม" : "+ สร้างงานใหม่"}</button></div>
       <div className="dashboard-stats"><div><strong>{albums.length}</strong><span>อัลบั้มทั้งหมด</span></div><div><strong>{publishedCount}</strong><span>กำลังเผยแพร่</span></div><div><strong>{albums.reduce((sum, album) => sum + album.photoCount, 0)}</strong><span>รูปทั้งหมด</span></div></div>
       {showCreate && <section className="create-panel"><div className="create-panel-head"><span>NEW CLIENT GALLERY</span><h2>สร้างอัลบั้มใหม่</h2></div><div className="create-grid"><label>ชื่ออัลบั้ม *<input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="เช่น กานต์ & กิ่ง" /></label><label>วันที่จัดงาน<input value={eventDate} onChange={(e) => setEventDate(e.target.value)} placeholder="12 มิถุนายน 2569" /></label><label>สถานที่<input value={venue} onChange={(e) => setVenue(e.target.value)} placeholder="ชื่อสถานที่" /></label><label>วันหมดอายุ<input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} /></label><label className="full">ลิงก์แชร์ Google Photos *<input value={shareLink} onChange={(e) => setShareLink(e.target.value)} placeholder="https://photos.app.goo.gl/…" inputMode="url" /></label></div><button className="google-button" onClick={importAlbum} disabled={busy || !title || !shareLink}>{busy ? "กำลังสร้างอัลบั้ม…" : "ดึงรูปและสร้างลิงก์ลูกค้า"}</button>{status && <div className="studio-status" role="status">{status}</div>}</section>}
+      {!showCreate && status && <div className="studio-status dashboard-status" role="status">{status}</div>}
       <div className="album-list-head"><h2>งานทั้งหมด</h2><span>{albums.length} งาน</span></div>
       {albums.length === 0 ? <div className="empty-albums"><span>＋</span><h3>ยังไม่มีอัลบั้ม</h3><p>เริ่มต้นด้วยการสร้างงานและวางลิงก์ Google Photos</p></div> : <div className="album-grid">{albums.map((album) => <article className="album-admin-card" key={album.id}>
         <div className="album-cover">{album.coverPhotoId && album.isPublished ? <img src={`/api/g/${album.shareToken}/photo/${album.coverPhotoId}`} alt="" /> : <span>L</span>}<b className={album.isPublished ? "live" : "draft"}>{album.isPublished ? "เผยแพร่แล้ว" : "ปิดอยู่"}</b><div className="album-quick-actions"><button className="copy-link-primary" onClick={() => copyLink(album)} disabled={!album.isPublished}>{album.isPublished ? (copied === album.id ? "✓ คัดลอกลิงก์แล้ว" : "⧉ คัดลอกลิงก์ลูกค้า") : "เผยแพร่ก่อนคัดลอกลิงก์"}</button><button className="delete-album-primary" onClick={() => deleteAlbum(album)} disabled={deletingId === album.id}>{deletingId === album.id ? "กำลังลบ…" : "ลบอัลบั้ม"}</button></div></div>
-        <div className="album-card-body"><span className="album-date">{album.eventDate || new Date(album.createdAt).toLocaleDateString("th-TH")}</span><h3>{album.title}</h3><p>{album.venue || "ยังไม่ได้ระบุสถานที่"}</p><div className="album-meta"><span>{album.photoCount} รูป</span>{album.expiresAt && <span>หมดอายุ {new Date(album.expiresAt).toLocaleDateString("th-TH")}</span>}</div><div className="album-actions">{album.isPublished && <a href={`/g/${album.shareToken}`} target="_blank" rel="noreferrer">เปิดดูอัลบั้ม</a>}<button className="muted" onClick={() => togglePublish(album)}>{album.isPublished ? "หยุดเผยแพร่" : "เผยแพร่"}</button></div></div>
+        <div className="album-card-body">
+          {editingId === album.id ? <div className="album-edit-form">
+            <label>ชื่ออัลบั้ม<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} /></label>
+            <label>วันที่จัดงาน<input value={editEventDate} onChange={(event) => setEditEventDate(event.target.value)} /></label>
+            <label>สถานที่<input value={editVenue} onChange={(event) => setEditVenue(event.target.value)} /></label>
+            <label>วันหมดอายุ<input type="date" value={editExpiresAt} onChange={(event) => setEditExpiresAt(event.target.value)} /></label>
+            <p className="edit-expiry-note">ล้างวันหมดอายุแล้วบันทึก เพื่อให้อัลบั้มไม่หมดอายุ</p>
+            <div className="album-edit-actions">
+              <button className="save-album-edit" onClick={() => saveEdit(album)} disabled={savingEdit || !editTitle.trim()}>{savingEdit ? "กำลังบันทึก…" : "บันทึกการแก้ไข"}</button>
+              <button className="cancel-album-edit" onClick={cancelEdit} disabled={savingEdit}>ยกเลิก</button>
+            </div>
+          </div> : <>
+            <span className="album-date">{album.eventDate || new Date(album.createdAt).toLocaleDateString("th-TH")}</span><h3>{album.title}</h3><p>{album.venue || "ยังไม่ได้ระบุสถานที่"}</p><div className="album-meta"><span>{album.photoCount} รูป</span><span>{album.expiresAt ? `หมดอายุ ${new Date(album.expiresAt).toLocaleDateString("th-TH")}` : "ไม่กำหนดวันหมดอายุ"}</span></div><div className="album-actions">{album.isPublished && <a href={`/g/${album.shareToken}`} target="_blank" rel="noreferrer">เปิดดูอัลบั้ม</a>}<button className="muted" onClick={() => startEdit(album)}>แก้ไขอัลบั้ม</button><button className="muted" onClick={() => togglePublish(album)}>{album.isPublished ? "หยุดเผยแพร่" : "เผยแพร่"}</button></div>
+          </>}
+        </div>
       </article>)}</div>}
     </section>
   </main>;
