@@ -15,7 +15,7 @@ export default async function CustomerGallery({ params }: { params: Promise<{ to
   const rows = await query<Record<string, unknown>>(`SELECT id, filename, sort_order FROM photos WHERE album_id = $1 ORDER BY sort_order`, [album.id]);
   const photos: GalleryPhoto[] = rows.map((photo, index) => {
     const id = String(photo.id); const base = `/api/g/${encodeURIComponent(token)}/photo/${encodeURIComponent(id)}`;
-    return { id, src: base, full: `${base}?size=full`, download: `${base}?download=1`, alt: `ภาพที่ ${index + 1} จากอัลบั้ม ${album.title}`, filename: String(photo.filename), aspect: "landscape" };
+    return { id, src: `${base}?preview=thumb&v=1`, full: `${base}?preview=full&v=1`, download: `${base}?download=1`, alt: `ภาพที่ ${index + 1} จากอัลบั้ม ${album.title}`, filename: String(photo.filename), aspect: "landscape" };
   });
   return <GalleryClient album={{ title: String(album.title), eventDate: album.event_date ? String(album.event_date) : null, venue: album.venue ? String(album.venue) : null, photographer: "KoAke Photo", shareToken: token }} photos={photos} />;
 }
