@@ -19,6 +19,7 @@ async function savePhoto(photo: GalleryPhoto) {
 export function GalleryClient({ album, photos }: { album: GalleryAlbum; photos: GalleryPhoto[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [lightboxPreview, setLightboxPreview] = useState("");
   const [notice, setNotice] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
   const touchStart = useRef<number | null>(null);
@@ -65,6 +66,28 @@ export function GalleryClient({ album, photos }: { album: GalleryAlbum; photos: 
     };
   }, [lightbox]);
 
+  useEffect(() => {
+    if (!currentPhoto) {
+      setLightboxPreview("");
+      return;
+    }
+
+    let cancelled = false;
+    setLightboxPreview(currentPhoto.src);
+
+    const fullImage = new Image();
+    fullImage.onload = async () => {
+      try { await fullImage.decode(); } catch { /* Keep the cached preview if decoding is unavailable. */ }
+      if (!cancelled) setLightboxPreview(currentPhoto.full);
+    };
+    fullImage.src = currentPhoto.full;
+
+    return () => {
+      cancelled = true;
+      fullImage.onload = null;
+    };
+  }, [currentPhoto]);
+
   const downloadSelected = async () => {
     setNotice(`กำลังดาวน์โหลด ${selectedPhotos.length} รูป…`);
     for (const photo of selectedPhotos) {
@@ -108,17 +131,7 @@ export function GalleryClient({ album, photos }: { album: GalleryAlbum; photos: 
       {notice && <div className="toast" role="status">{notice}</div>}
       {currentPhoto && <div className="lightbox" role="dialog" aria-modal="true" aria-label={`ดูภาพ ${lightbox! + 1} จาก ${photos.length}`} onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }} onTouchEnd={(event) => { if (touchStart.current === null) return; const distance = event.changedTouches[0].clientX - touchStart.current; if (Math.abs(distance) > 45) move(distance > 0 ? -1 : 1); touchStart.current = null; }}>
         <div className="lightbox-top"><span><b>{String(lightbox! + 1).padStart(2, "0")}</b> / {String(photos.length).padStart(2, "0")}</span><div><button onClick={() => toggle(currentPhoto.id)} className={selected.has(currentPhoto.id) ? "chosen" : ""}>{selected.has(currentPhoto.id) ? "✓ เลือกแล้ว" : "○ เลือกรูป"}</button><button onClick={() => savePhoto(currentPhoto)}>↓ ดาวน์โหลด</button><button className="close" onClick={() => setLightbox(null)} aria-label="ปิด">×</button></div></div>
-        <button className="nav prev" onClick={() => move(-1)} aria-label="รูปก่อนหน้า">←</button><div className="lightbox-stage"><img
-          key={currentPhoto.id}
-          src={currentPhoto.full}
-          alt={currentPhoto.alt}
-          onError={(event) => {
-            const image = event.currentTarget;
-            if (image.dataset.fallbackApplied === "1") return;
-            image.dataset.fallbackApplied = "1";
-            image.src = currentPhoto.src;
-          }}
-        /></div><button className="nav next" onClick={() => move(1)} aria-label="รูปถัดไป">→</button><div className="lightbox-bottom"><p>{currentPhoto.filename}</p><span>ปัดซ้าย–ขวา หรือใช้ปุ่มลูกศรเพื่อดูรูปถัดไป</span></div>
+        <button className="nav prev" onClick={() => move(-1)} aria-label="รูปก่อนหน้า">←</button><div className="lightbox-stage"><img key={currentPhoto.id} src={lightboxPreview || currentPhoto.src} alt={currentPhoto.alt} /></div><button className="nav next" onClick={() => move(1)} aria-label="รูปถัดไป">→</button><div className="lightbox-bottom"><p>{currentPhoto.filename}</p><span>ปัดซ้าย–ขวา หรือใช้ปุ่มลูกศรเพื่อดูรูปถัดไป</span></div>
       </div>}
       {infoOpen && <div className="sheet-backdrop" role="presentation" onMouseDown={() => setInfoOpen(false)}><aside className="info-sheet" role="dialog" aria-modal="true" aria-label="ข้อมูลอัลบั้ม" onMouseDown={(event) => event.stopPropagation()}><button className="sheet-close" onClick={() => setInfoOpen(false)}>×</button><span className="sheet-kicker">PRIVATE GALLERY</span><h2>{album.title}</h2><p>ลิงก์นี้จัดทำสำหรับลูกค้าของอัลบั้มนี้เท่านั้น กรุณาไม่ส่งต่อให้บุคคลอื่น</p><dl><div><dt>วันที่</dt><dd>{album.eventDate || "—"}</dd></div><div><dt>สถานที่</dt><dd>{album.venue || "—"}</dd></div><div><dt>ช่างภาพ</dt><dd>KoAke Photo</dd></div></dl><button className="sheet-action" onClick={() => { setInfoOpen(false); setSelected(new Set(photos.map((photo) => photo.id))); }}>เลือกทุกภาพในอัลบั้ม</button></aside></div>}
     </main>
