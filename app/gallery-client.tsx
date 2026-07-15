@@ -92,21 +92,26 @@ export function GalleryClient({ album, photos }: { album: GalleryAlbum; photos: 
     };
   }, [currentPhoto]);
 
-  const downloadSingle = async (photo: GalleryPhoto) => {
+  const downloadSingle = (photo: GalleryPhoto) => {
     if (downloadingPhotoId) return;
 
     setDownloadingPhotoId(photo.id);
-    setNotice(`กำลังดาวน์โหลด ${photo.filename}…`);
+    setNotice(`กำลังดาวน์โหลดไฟล์ต้นฉบับ\n${photo.filename}`);
 
-    try {
-      await savePhoto(photo);
-      setNotice("เริ่มดาวน์โหลดไฟล์ต้นฉบับแล้ว");
-    } catch {
-      setNotice(`ดาวน์โหลด ${photo.filename} ไม่สำเร็จ`);
-    } finally {
+    const anchor = document.createElement("a");
+    anchor.href = photo.download;
+    anchor.download = photo.filename;
+    anchor.rel = "noopener";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+
+    // The browser now owns the transfer. Keep the overlay visible briefly
+    // so the customer gets clear feedback without blocking the download.
+    window.setTimeout(() => {
       setDownloadingPhotoId(null);
-      setTimeout(() => setNotice(""), 2500);
-    }
+      setNotice("");
+    }, 2200);
   };
 
   const downloadSelected = async () => {
@@ -149,9 +154,19 @@ export function GalleryClient({ album, photos }: { album: GalleryAlbum; photos: 
       </section>
       <footer><span className="footer-mark">K</span><p>เก็บทุกความรู้สึก ให้กลับมามีชีวิตอีกครั้ง</p><small>© 2026 KOAKE PHOTO</small></footer>
       {selected.size > 0 && <div className="selection-bar"><div><span>{selected.size}</span><p>รูปที่เลือก<small>แตะรูปอีกครั้งเพื่อยกเลิก</small></p></div><button className="clear-button" onClick={() => setSelected(new Set())}>ล้าง</button><button className="download-button" onClick={downloadSelected}><span>↓</span> ดาวน์โหลด</button></div>}
-      {notice && <div className="toast" role="status">{notice}</div>}
+      {notice && (
+        <div className="download-overlay" role="status" aria-live="polite">
+          <div className="download-overlay-card">
+            <span className="download-spinner" aria-hidden="true" />
+            <strong>กำลังดาวน์โหลด</strong>
+            <p>{notice.replace("กำลังดาวน์โหลดไฟล์ต้นฉบับ\n", "")}</p>
+            <small>กรุณารอสักครู่ ระบบกำลังเตรียมไฟล์ต้นฉบับ</small>
+          </div>
+        </div>
+      )}
       {currentPhoto && <div className="lightbox" role="dialog" aria-modal="true" aria-label={`ดูภาพ ${lightbox! + 1} จาก ${photos.length}`} onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }} onTouchEnd={(event) => { if (touchStart.current === null) return; const distance = event.changedTouches[0].clientX - touchStart.current; if (Math.abs(distance) > 45) move(distance > 0 ? -1 : 1); touchStart.current = null; }}>
         <div className="lightbox-top"><span><b>{String(lightbox! + 1).padStart(2, "0")}</b> / {String(photos.length).padStart(2, "0")}</span><div><button onClick={() => toggle(currentPhoto.id)} className={selected.has(currentPhoto.id) ? "chosen" : ""}>{selected.has(currentPhoto.id) ? "✓ เลือกแล้ว" : "○ เลือกรูป"}</button><button
+          className="lightbox-download-button"
           onClick={() => downloadSingle(currentPhoto)}
           disabled={downloadingPhotoId === currentPhoto.id}
           aria-busy={downloadingPhotoId === currentPhoto.id}
